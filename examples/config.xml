@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets"
+        id="http://example.com/myhome" version="0.1.0" viewmodes="maximized">
+    <!-- Keep this application id stable once the Home key points at it. -->
+    <tizen:application id="MyHome0001.MyHome" package="MyHome0001" required_version="6.5"/>
+    <content src="index.html"/>
+    <icon src="icon.png"/>
+    <!-- No spaces: the .wgt is named after this, and a space makes install fail silently. -->
+    <name>MyHome</name>
+
+    <feature name="http://tizen.org/feature/screen.size.normal.1080.1920"/>
+
+    <tizen:privilege name="http://tizen.org/privilege/application.launch"/>
+    <tizen:privilege name="http://tizen.org/privilege/application.info"/>
+    <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
+    <tizen:privilege name="http://tizen.org/privilege/tv.window"/>
+    <tizen:privilege name="http://tizen.org/privilege/internet"/>
+    <access origin="https://api.themoviedb.org" subdomains="false"/>
+    <access origin="https://image.tmdb.org" subdomains="false"/>
+
+    <tizen:metadata key="http://samsung.com/tv/metadata/prelaunch.support" value="true"/>
+
+    <tizen:profile name="tv-samsung"/>
+    <tizen:setting screen-orientation="landscape" context-menu="disable"
+                   background-support="disable" encryption="disable"
+                   install-location="auto" hwkey-event="enable"/>
+</widget>
