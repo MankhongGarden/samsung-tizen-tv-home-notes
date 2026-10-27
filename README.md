@@ -1,6 +1,6 @@
 # Custom home screen on a 2024 Samsung TV (Tizen 9): field notes
 
-> **Experimental · field notes (October 2026).** Everything below was observed on **one TV**: a 2024 Samsung Crystal UHD (DU7000 series, Tizen 9.0, armv7), with Tizen Studio 6.1 on Windows 11. The app was built and tested over two days. Treat each finding as "seen once on this setup", not as Samsung-wide behaviour. Firmware updates can change any of it.
+> **Experimental · field notes (October 2026).** Everything below was observed on **one TV**: a 2024 Samsung Crystal UHD (DU7000 series, Tizen 9.0, armv7), with Tizen Studio 6.1 on Windows 11. The app was built and tested over about a week. Treat each finding as "seen once on this setup", not as Samsung-wide behaviour. Firmware updates can change any of it.
 
 I replaced the Smart Hub home screen on my living-room TV with my own Tizen web app (`.wgt`): favourite apps, HDMI inputs, new releases on the streaming services I pay for, genre browsing, search with an on-screen Thai/English keyboard, and a "where can I watch this" card.
 
@@ -10,7 +10,7 @@ Getting there cost far more time on the TV's quirks than on the app. This repo i
 
 1. [Developer Mode would not open (fixed by Reset Smart Hub)](#1-developer-mode-would-not-open)
 2. [Install gotchas](#2-install-gotchas)
-3. [Deep-linking into a title: only Prime Video worked](#3-deep-linking-into-a-title-only-prime-video-worked)
+3. [Deep-linking into a title: Prime Video, and YouTube via cast](#3-deep-linking-into-a-title-prime-video-and-youtube-via-cast)
 4. [The Home key](#4-the-home-key)
 5. [Making it smooth on a weak TV CPU](#5-making-it-smooth-on-a-weak-tv-cpu)
 6. [Remote input: hold-OK and a custom keyboard](#6-remote-input-hold-ok-and-a-custom-keyboard)
@@ -52,7 +52,7 @@ I don't know which step mattered: the stale Smart Hub state, the non-English men
 
 **Keep the author certificate.** Updates must be signed with the same author certificate. If you lose it, you have to uninstall and reinstall the app. Back up the `.p12` and keep its password in a password manager.
 
-## 3. Deep-linking into a title: only Prime Video worked
+## 3. Deep-linking into a title: Prime Video, and YouTube via cast
 
 Goal: press OK on a poster and land on that title inside the streaming app. Tested 2026-10-22 with `tizen.application.launchAppControl`. Before each test, I parked the target app on an unrelated screen. Otherwise "it opened" and "it resumed where I left off" look the same.
 
@@ -71,8 +71,23 @@ The Prime `gti` came from JustWatch's `deeplinkURL(platform: TIZENOS)` (see §7)
 - `GET` returns the app state. `POST` launches the app. `DELETE …/run` stops it.
 - Netflix: `POST` launches it (201 on cold start, 200 if it's already running) but **ignores every title body** I sent: `m=…/title/<id>&source_type=4`, `…/watch/<id>`, and the `api.netflix.com/catalog/titles/series/<id>` form, both plain and URL-encoded. A cold start lands on the profile picker.
 - `DisneyPlus` and `Monomax`: `POST` returns 200, but the app never starts. The state stays `stopped`, even with Netflix stopped first.
+- Netflix search link (observed on 2026-10-27): `m=https://www.netflix.com/search?q=<title>&source_type=4` is ignored too. Cold start lands on the profile picker; sending it again while Netflix is running returns 200 and the screen doesn't change.
 
-**Result:** on this firmware, a third-party home screen can deep-link into Prime Video only. For every other service, OK just opens the app.
+### YouTube: DIAL `v=` is ignored, the cast protocol works
+
+Observed on 2026-10-27, tested from a PC first and then from inside the Tizen app.
+
+- DIAL `POST /ws/apps/YouTube` needs an `Origin: https://www.youtube.com` header (without it: 403). The `v=<videoId>` body is **ignored**: if YouTube is running it just resumes the open clip, and on a true cold start (after `DELETE …/YouTube/run`) it lands on YouTube's home.
+- What works is the same protocol a phone uses to cast (the YouTube "Lounge" API on `www.youtube.com/api/lounge/…`):
+  1. Get the TV's **screen id** (DIAL `GET /ws/apps/YouTube` → `additionalData.screenId`, while YouTube is running).
+  2. `pairing/get_lounge_token_batch` with that screen id → a lounge token.
+  3. `bc/bind` as a remote (`count=0`) → session ids.
+  4. `bc/bind` again with a `setPlaylist` request for the video id → the clip plays on the TV.
+- **From inside a Tizen web app**, DIAL `GET` on the TV itself returned **401** (the app's origin is refused), so the app can't read the screen id. I read it once from a PC and baked it into the build. It stayed the same across YouTube restarts; if casting stops working after a YouTube reset or re-pairing, read it again. The `youtube.com` lounge requests from the app worked without CORS problems.
+- The YouTube app must be running and online before `setPlaylist` lands. The app launches YouTube, then re-binds every ~1 s (up to ~25 s) until the bind response shows the TV screen is connected, then sends the video.
+- Set `background-support="enable"` in config.xml, or your app's JS stops when YouTube comes to the front and the cast never gets sent.
+
+**Result:** on this firmware, a third-party home screen can open a specific title in Prime Video (app-control) and a specific clip in YouTube (cast protocol). For every other service, OK just opens the app.
 
 ## 4. The Home key
 
